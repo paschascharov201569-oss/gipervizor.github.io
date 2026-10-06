@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Гипервизор — 10 слайдов, простыми словами</title>
+<style>
+:root{
+  --bg:#060911; --ink:#f1f6ff; --muted:#a6b4cf; --dim:#7e8ba6;
+  --cy:#2dd4f0; --vi:#a970ff; --gr:#3ddc97; --am:#ffc247; --rd:#ff6b81;
+  --line:rgba(255,255,255,.12);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);overflow:hidden;
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+
+/* ---------- фон: градиенты, сетка, плавающие фигуры ---------- */
+.amb{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(900px 620px at 8% -8%,rgba(45,212,240,.20),transparent 62%),
+    radial-gradient(1000px 700px at 97% 4%,rgba(169,112,255,.19),transparent 62%),
+    radial-gradient(900px 680px at 50% 116%,rgba(61,220,151,.12),transparent 62%)}
+.gr{position:fixed;inset:-12%;z-index:0;pointer-events:none;opacity:.3;
+  background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+  background-size:64px 64px;mask-image:radial-gradient(circle at 50% 45%,#000 18%,transparent 74%);animation:drift 30s linear infinite}
+@keyframes drift{to{transform:translate3d(64px,64px,0)}}
+#shapes{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+#shapes i{position:absolute;display:block;border:1.5px solid rgba(150,220,255,.22);animation:float linear infinite}
+#shapes i.s1{width:34px;height:34px;border-radius:9px;border-color:rgba(45,212,240,.28)}
+#shapes i.s2{width:22px;height:22px;border-radius:50%;border-color:rgba(169,112,255,.3)}
+#shapes i.s3{width:0;height:0;border:0;border-left:13px solid transparent;border-right:13px solid transparent;border-bottom:22px solid rgba(61,220,151,.22)}
+#shapes i.s4{width:16px;height:16px;border-radius:4px;border-color:rgba(255,194,71,.25)}
+@keyframes float{
+  0%{transform:translate3d(0,110vh,0) rotate(0deg);opacity:0}
+  10%{opacity:.85}
+  90%{opacity:.85}
+  100%{transform:translate3d(40px,-15vh,0) rotate(360deg);opacity:0}
+}
+#stage{position:fixed;inset:0;z-index:2}
+.slide{position:absolute;inset:0;display:grid;align-content:center;gap:clamp(8px,1.6vh,18px);
+  padding:clamp(16px,4vh,50px) clamp(18px,5.5vw,96px) clamp(52px,8vh,84px);
+  opacity:0;visibility:hidden;pointer-events:none;transform:translateY(22px) scale(.99);
+  transition:opacity .4s ease,transform .5s cubic-bezier(.16,.9,.2,1),visibility .4s}
+.slide.on{opacity:1;visibility:visible;pointer-events:auto;transform:none}
+.slide.up{transform:translateY(-18px) scale(.99)}
+
+/* ---------- появление блоков ---------- */
+[data-a]{opacity:0;transform:translateY(20px);transition:opacity .5s ease,transform .6s cubic-bezier(.16,.9,.2,1)}
+.slide.on [data-a]{opacity:1;transform:none;transition-delay:calc(var(--i,0)*80ms + 100ms)}
+[data-a="s"]{transform:scale(.94)}
+[data-a="l"]{transform:translateX(-26px)}
+[data-a="r"]{transform:translateX(26px)}
+
+/* ---------- текст ---------- */
+.kick{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:clamp(10px,1.05vw,12.5px);letter-spacing:.2em;
+  text-transform:uppercase;color:var(--cy);margin:0;display:flex;align-items:center;gap:11px}
+.kick::before{content:"";width:30px;height:1px;background:linear-gradient(90deg,var(--cy),transparent)}
+.kick.v{color:var(--vi)}.kick.v::before{background:linear-gradient(90deg,var(--vi),transparent)}
+.kick.g{color:var(--gr)}.kick.g::before{background:linear-gradient(90deg,var(--gr),transparent)}
+.kick.r{color:var(--rd)}.kick.r::before{background:linear-gradient(90deg,var(--rd),transparent)}
+h1{font-size:clamp(34px,6.2vw,80px);line-height:1;margin:0;font-weight:850;letter-spacing:-.025em}
+h2{font-size:clamp(23px,3.5vw,44px);line-height:1.08;margin:0;font-weight:800;letter-spacing:-.02em;max-width:30ch}
+h3{margin:0 0 5px;font-size:clamp(13.5px,1.3vw,16.5px);font-weight:750}
+p{margin:0;color:var(--muted);font-size:clamp(13.5px,1.4vw,18px);line-height:1.5;max-width:76ch}
+.big{font-size:clamp(16px,1.95vw,25px);color:#dbe6f7;line-height:1.45;max-width:58ch}
+.acc{background:linear-gradient(92deg,var(--cy),#8fe3f7 40%,var(--vi));-webkit-background-clip:text;background-clip:text;color:transparent}
+.acc2{background:linear-gradient(92deg,var(--rd),var(--am));-webkit-background-clip:text;background-clip:text;color:transparent}
+.acc3{background:linear-gradient(92deg,var(--gr),var(--cy));-webkit-background-clip:text;background-clip:text;color:transparent}
+b.w{color:#fff}
+.row{display:grid;gap:clamp(14px,2.2vw,30px);align-items:center}
+.two{grid-template-columns:1fr 1fr}
+.wl{grid-template-columns:1fr 1.08fr}
+.wr{grid-template-columns:1.08fr 1fr}
+ul.pts{margin:0;padding:0;list-style:none;display:grid;gap:clamp(7px,1.1vh,12px);max-width:66ch}
+ul.pts li{position:relative;padding-left:25px;color:var(--muted);font-size:clamp(13px,1.32vw,17.5px);line-height:1.45}
+ul.pts li::before{content:"";position:absolute;left:0;top:.55em;width:9px;height:9px;border-radius:2px;transform:rotate(45deg);
+  background:linear-gradient(135deg,var(--cy),var(--vi));box-shadow:0 0 12px rgba(45,212,240,.6)}
+ul.pts.r li::before{background:linear-gradient(135deg,var(--rd),var(--am));box-shadow:0 0 12px rgba(255,107,129,.5)}
+ul.pts.g li::before{background:linear-gradient(135deg,var(--gr),var(--cy));box-shadow:0 0 12px rgba(61,220,151,.5)}
+ul.pts li b{color:#fff}
+.note{padding:11px 15px;border-left:3px solid rgba(45,212,240,.6);background:rgba(45,212,240,.07);border-radius:0 12px 12px 0;
+  color:#d3e5f4;font-size:clamp(12.5px,1.25vw,16.5px);line-height:1.45}
+.note.v{border-color:rgba(169,112,255,.6);background:rgba(169,112,255,.08)}
+.note.r{border-color:rgba(255,107,129,.6);background:rgba(255,107,129,.08)}
+.note.g{border-color:rgba(61,220,151,.6);background:rgba(61,220,151,.08)}
+
+/* ---------- карточки ---------- */
+.cards{display:grid;gap:clamp(9px,1.2vw,16px)}
+.c2{grid-template-columns:repeat(auto-fit,minmax(235px,1fr))}
+.c3{grid-template-columns:repeat(auto-fit,minmax(196px,1fr))}
+.c4{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid var(--line);
+  border-radius:17px;padding:clamp(11px,1.3vw,18px);position:relative;overflow:hidden;
+  transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease}
+.card::before{content:"";position:absolute;left:0;top:0;width:100%;height:2px;background:linear-gradient(90deg,var(--cy),var(--vi));
+  transform:scaleX(0);transform-origin:left;transition:transform .6s cubic-bezier(.16,.9,.2,1);transition-delay:calc(var(--i,0)*80ms + 240ms)}
+.slide.on .card::before{transform:scaleX(1)}
+.card:hover{transform:translateY(-5px) scale(1.015);border-color:rgba(45,212,240,.45);box-shadow:0 14px 34px rgba(0,0,0,.4)}
+.card .ic{font-size:clamp(22px,2.2vw,30px);line-height:1;display:block;margin-bottom:8px;
+  animation:icb 3.2s ease-in-out infinite;animation-delay:calc(var(--i,0)*.25s)}
+@keyframes icb{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(-6deg)}}
+.card p{font-size:clamp(12px,1.12vw,14.5px);color:var(--dim);line-height:1.45}
+.card .tg{display:block;margin-bottom:6px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:.14em;color:var(--cy)}
+.card.v::before{background:linear-gradient(90deg,var(--vi),var(--rd))}.card.v .tg{color:var(--vi)}
+.card.g::before{background:linear-gradient(90deg,var(--gr),var(--cy))}.card.g .tg{color:var(--gr)}
+.card.r::before{background:linear-gradient(90deg,var(--rd),var(--am))}.card.r .tg{color:var(--rd)}
+
+/* ---------- диаграммы ---------- */
+.dg{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:20px;
+  background:linear-gradient(180deg,rgba(12,18,32,.85),rgba(6,10,18,.5));padding:clamp(7px,1.1vw,13px)}
+.dg text{font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial,sans-serif}
+.dg .m{font-family:ui-monospace,Menlo,Consolas,monospace}
+.slide.on .dg .f{animation:fup .7s cubic-bezier(.16,.9,.2,1) both;animation-delay:calc(var(--d,0)*1s + .2s)}
+@keyframes fup{from{opacity:0;transform:translateY(11px)}to{opacity:1;transform:none}}
+.dg .dr{stroke-dasharray:600;stroke-dashoffset:600}
+.slide.on .dg .dr{animation:draw 1.4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:calc(var(--d,0)*1s + .3s)}
+@keyframes draw{to{stroke-dashoffset:0}}
+.slide.on .dg .pl{animation:pld 1.3s linear infinite;animation-delay:calc(var(--d,0)*1s + .5s)}
+@keyframes pld{from{stroke-dashoffset:34}to{stroke-dashoffset:0}}
+.slide.on .dg .gl{animation:glw 2.4s ease-in-out infinite}
+@keyframes glw{0%,100%{opacity:.25}50%{opacity:.95}}
+.dg .bl{transform-box:fill-box;transform-origin:center}
+.slide.on .dg .bl{animation:bl 2.6s ease-in-out infinite;animation-delay:calc(var(--d,0)*1s)}
+@keyframes bl{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.2);opacity:1}}
+.dg .rot{transform-box:fill-box;transform-origin:center}
+.slide.on .dg .rot{animation:rot 9s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.slide.on .dg .pop{animation:pop .6s cubic-bezier(.16,.9,.2,1) both;animation-delay:calc(var(--d,0)*1s + .25s)}
+@keyframes pop{0%{opacity:0;transform:scale(.6)}70%{transform:scale(1.07)}100%{opacity:1;transform:scale(1)}}
+.slide.on .dg .fill{animation:fill 3.4s cubic-bezier(.4,0,.2,1) infinite;animation-delay:calc(var(--d,0)*1s)}
+@keyframes fill{0%{transform:scaleX(.06)}55%{transform:scaleX(1)}100%{transform:scaleX(.06)}}
+.dg .fill{transform-box:fill-box;transform-origin:left center}
+
+/* ---------- обложка ---------- */
+.orb{position:absolute;right:clamp(-70px,-3vw,0px);top:50%;translate:0 -50%;width:clamp(200px,27vw,380px);aspect-ratio:1;
+  border-radius:50%;pointer-events:none;filter:blur(6px);animation:brt 7s ease-in-out infinite;
+  background:radial-gradient(circle at 34% 30%,rgba(45,212,240,.5),rgba(169,112,255,.26) 42%,transparent 68%)}
+.orb::after{content:"";position:absolute;inset:12%;border-radius:50%;border:1px solid rgba(255,255,255,.13);animation:spn 24s linear infinite}
+@keyframes brt{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.08);opacity:1}}
+@keyframes spn{to{transform:rotate(360deg)}}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:clamp(10px,.98vw,12.5px);padding:6px 11px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(255,255,255,.05);color:#c9d6ea}
+.chip.c{border-color:rgba(45,212,240,.42);color:#a8ecf9;background:rgba(45,212,240,.1)}
+.chip.v{border-color:rgba(169,112,255,.42);color:#e2cdff;background:rgba(169,112,255,.1)}
+.chip.r{border-color:rgba(255,107,129,.42);color:#ffd0d7;background:rgba(255,107,129,.1)}
+.qa{display:grid;gap:9px}
+.qa .q{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid var(--line);
+  border-radius:14px;padding:11px 15px;transition:.25s}
+.qa .q:hover{border-color:rgba(45,212,240,.4);transform:translateX(4px)}
+.qa .q b{display:block;color:#fff;margin-bottom:3px;font-size:clamp(12.5px,1.22vw,15.5px)}
+.qa .q span{color:var(--muted);font-size:clamp(12px,1.15vw,15px);line-height:1.45}
+
+/* ---------- интерактив: + ВМ ---------- */
+.plus{appearance:none;border:1px solid rgba(45,212,240,.45);background:rgba(45,212,240,.14);color:#c9f4fb;
+  font:inherit;font-size:clamp(12px,1.15vw,15px);padding:9px 16px;border-radius:12px;cursor:pointer;transition:.25s}
+.plus:hover{background:rgba(45,212,240,.26);transform:translateY(-2px)}
+.plus:active{transform:scale(.96)}
+#vmBox .vm{animation:vmpop .5s cubic-bezier(.16,.9,.2,1) both}
+@keyframes vmpop{0%{opacity:0;transform:scale(.5) translateY(14px)}70%{transform:scale(1.08)}100%{opacity:1;transform:none}}
+
+/* ---------- интерфейс ---------- */
+#bar{position:fixed;top:0;left:0;height:3px;width:0;z-index:8;background:linear-gradient(90deg,var(--cy),var(--vi),var(--rd));
+  box-shadow:0 0 16px rgba(45,212,240,.6);transition:width .45s cubic-bezier(.16,.9,.2,1)}
+#hud{position:fixed;left:0;right:0;bottom:0;z-index:7;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px clamp(12px,3vw,28px);background:linear-gradient(180deg,transparent,rgba(3,5,10,.93) 60%);
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--dim)}
+#dots{display:flex;gap:7px;flex-wrap:wrap}
+#dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.18);cursor:pointer;transition:.3s}
+#dots i.on{background:var(--cy);box-shadow:0 0 11px rgba(45,212,240,.9);transform:scale(1.45)}
+.nav{display:flex;align-items:center;gap:7px}
+.bt{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.06);color:#e4ebf8;height:33px;border-radius:10px;
+  cursor:pointer;font:inherit;font-size:11.5px;padding:0 11px;transition:.25s;letter-spacing:.04em}
+.bt:hover{background:rgba(45,212,240,.18);border-color:rgba(45,212,240,.5);color:#fff}
+.bt.sq{width:33px;padding:0;font-size:14px}
+#cnt{min-width:62px;text-align:right;color:#bcc9de;letter-spacing:.1em}
+.hint{color:#66748e;letter-spacing:.04em}
+#toc{position:fixed;inset:0;z-index:9;background:rgba(4,7,13,.97);backdrop-filter:blur(8px);overflow:auto;
+  padding:clamp(20px,5vh,54px) clamp(20px,6vw,84px);display:none}
+#toc.on{display:block}
+#toc h3{font-size:clamp(18px,2vw,26px);margin-bottom:18px}
+#toc ol{list-style:none;margin:0;padding:0;columns:2;column-gap:36px}
+#toc li{break-inside:avoid;margin-bottom:7px;padding:8px 11px;border-radius:10px;border:1px solid transparent;color:var(--muted);
+  font-size:clamp(12px,1.1vw,15px);cursor:pointer;transition:.2s}
+#toc li:hover{background:rgba(45,212,240,.1);border-color:rgba(45,212,240,.3);color:#fff}
+#toc li b{color:var(--cy);font-family:ui-monospace,Menlo,Consolas,monospace;margin-right:10px}
+#nt{position:fixed;right:clamp(12px,3vw,24px);bottom:54px;z-index:9;max-width:min(440px,42vw);background:rgba(9,14,24,.96);
+  border:1px solid rgba(45,212,240,.35);border-radius:15px;padding:13px 15px;box-shadow:0 18px 46px rgba(0,0,0,.55);display:none}
+#nt.on{display:block;animation:fup .3s ease both}
+#nt .lb{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:.18em;color:var(--cy);margin-bottom:6px}
+#nt .tx{color:#d7e3f5;font-size:13px;line-height:1.5}
+@media (max-width:920px){
+  .two,.wl,.wr{grid-template-columns:1fr}
+  #toc ol{columns:1}.orb{display:none}#nt{display:none!important}.hint{display:none}
+  .slide{overflow:auto;align-content:start}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+@media print{
+  body{overflow:visible}
+  #hud,#bar,#toc,#nt,.amb,.gr,#shapes{display:none!important}
+  #stage{position:static}
+  .slide{position:relative;opacity:1;visibility:visible;transform:none;page-break-after:always;min-height:100vh}
+}
+</style>
+</head>
+<body>
+<div class="amb"></div>
+<div class="gr"></div>
+<div id="shapes"></div>
+
+<div id="stage">
+
+<!-- 1. ТИТУЛ -->
+<section class="slide" data-toc="Титул">
+  <div class="orb" aria-hidden="true"></div>
+  <p class="kick" data-a style="--i:0">Доклад · простыми словами</p>
+  <h1 data-a style="--i:1">Гипервизор —<br><span class="acc">что это</span> и зачем</h1>
+  <p class="big" data-a style="--i:2;margin-top:10px">Это программа, которая делает из одного компьютера несколько.
+    Самый понятный пример — <b class="w">VirtualBox</b>.</p>
+  <div data-a="s" style="--i:3;margin-top:8px;max-width:640px">
+    <svg class="dg" viewBox="0 0 640 150" role="img" aria-label="Один компьютер превращается в три виртуальных">
+      <g class="f" style="--d:.1">
+        <rect x="16" y="20" width="190" height="110" rx="14" fill="rgba(45,212,240,.11)" stroke="rgba(45,212,240,.42)"/>
+        <rect x="30" y="34" width="162" height="70" rx="8" fill="rgba(4,8,16,.7)" stroke="rgba(255,255,255,.12)"/>
+        <text x="111" y="76" fill="#a8ecf9" font-size="14" font-weight="700" text-anchor="middle">Windows</text>
+        <rect x="86" y="112" width="50" height="7" rx="3.5" fill="rgba(45,212,240,.4)"/>
+        <text x="111" y="143" fill="#7e8ba6" font-size="11" text-anchor="middle">один ПК = одна система</text>
+      </g>
+      <g class="f" style="--d:.6">
+        <path d="M218 75 L282 75" stroke="url(#tg1)" stroke-width="3" class="dr pl" style="--d:.7" stroke-dasharray="8 6" fill="none" marker-end="url(#ta1)"/>
+        <text x="250" y="60" fill="#ffc247" font-size="11.5" text-anchor="middle" class="m">+ гипервизор</text>
+      </g>
+      <defs>
+        <linearGradient id="tg1" x1="0" x2="1"><stop offset="0" stop-color="#2dd4f0"/><stop offset="1" stop-color="#a970ff"/></linearGradient>
+        <marker id="ta1" markerWidth="9" markerHeight="9" refX="6.5" refY="3.2" orient="auto"><path d="M0 0 L8 3.2 L0 6.4 z" fill="#a970ff"/></marker>
+      </defs>
+      <g class="f" style="--d:1.1">
+        <g>
+          <rect x="296" y="26" width="100" height="94" rx="12" fill="rgba(45,212,240,.13)" stroke="rgba(45,212,240,.42)"/>
+          <text x="346" y="68" fill="#fff" font-size="12" text-anchor="middle">Windows</text>
+          <text x="346" y="86" fill="#8b98b3" font-size="10" text-anchor="middle">ВМ 1</text>
+          <circle cx="346" cy="104" r="4" fill="#2dd4f0" class="bl" style="--d:1.4"/>
+        </g>
+        <g>
+          <rect x="406" y="26" width="100" height="94" rx="12" fill="rgba(169,112,255,.16)" stroke="rgba(169,112,255,.45)"/>
+          <text x="456" y="68" fill="#fff" font-size="12" text-anchor="middle">Linux</text>
+          <text x="456" y="86" fill="#8b98b3" font-size="10" text-anchor="middle">ВМ 2</text>
+          <circle cx="456" cy="104" r="4" fill="#a970ff" class="bl" style="--d:1.6"/>
+        </g>
+        <g>
+          <rect x="516" y="26" width="100" height="94" rx="12" fill="rgba(61,220,151,.14)" stroke="rgba(61,220,151,.42)"/>
+          <text x="566" y="68" fill="#fff" font-size="12" text-anchor="middle">тесты</text>
+          <text x="566" y="86" fill="#8b98b3" font-size="10" text-anchor="middle">ВМ 3</text>
+          <circle cx="566" cy="104" r="4" fill="#3ddc97" class="bl" style="--d:1.8"/>
+        </g>
+        <text x="456" y="143" fill="#7e8ba6" font-size="11" text-anchor="middle">один ПК = три независимые системы</text>
+      </g>
+    </svg>
+  </div>
+  <div class="chips" data-a style="--i:4;margin-top:8px">
+    <span class="chip c">что это</span><span class="chip c">как работает</span><span class="chip v">где применяют</span><span class="chip r">и как через него читают память в играх</span>
+  </div>
+</section>
+
+<!-- 2. ЗАЧЕМ -->
+<section class="slide" data-toc="Зачем: было / стало">
+  <p class="kick" data-a style="--i:0">Проблема и решение</p>
+  <h2 data-a style="--i:1">Без гипервизора железо <span class="acc2">простаивает</span></h2>
+  <div class="row two">
+    <div data-a="l" style="--i:2">
+      <svg class="dg" viewBox="0 0 440 300" role="img" aria-label="Загрузка сервера без виртуализации">
+        <text x="220" y="26" fill="#ffc7cf" font-size="13" font-weight="800" text-anchor="middle">БЫЛО: ОДИН ПК = ОДНА СИСТЕМА</text>
+        <g class="f" style="--d:.15">
+          <rect x="34" y="44" width="150" height="46" rx="10" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.18)"/>
+          <text x="109" y="72" fill="#fff" font-size="12.5" text-anchor="middle">сайт компании</text>
+          <rect x="200" y="44" width="206" height="46" rx="10" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.1)" stroke-dasharray="5 5"/>
+          <text x="303" y="72" fill="#5f6c85" font-size="12" text-anchor="middle">пусто</text>
+        </g>
+        <g class="f" style="--d:.35">
+          <text x="34" y="124" fill="#a6b4cf" font-size="12">Загрузка сервера</text>
+          <rect x="34" y="136" width="372" height="30" rx="9" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.12)"/>
+          <rect x="34" y="136" width="372" height="30" rx="9" fill="rgba(255,107,129,.35)" class="fill" style="--d:.5;--w:1"/>
+          <text x="220" y="188" fill="#ff9aa8" font-size="13" text-anchor="middle" class="m">~10–15% · остальное простаивает</text>
+        </g>
+        <g class="f" style="--d:.7">
+          <text x="34" y="222" fill="#a6b4cf" font-size="12">Нужна вторая система?</text>
+          <rect x="34" y="234" width="372" height="46" rx="11" fill="rgba(255,107,129,.13)" stroke="rgba(255,107,129,.4)"/>
+          <text x="220" y="262" fill="#ffc7cf" font-size="13" text-anchor="middle">покупай второй компьютер 💸</text>
+        </g>
+      </svg>
+    </div>
+    <div data-a="r" style="--i:2">
+      <svg class="dg" viewBox="0 0 440 300" role="img" aria-label="Загрузка сервера с виртуализацией">
+        <text x="220" y="26" fill="#9ff2cd" font-size="13" font-weight="800" text-anchor="middle">СТАЛО: ОДИН ПК = МНОГО СИСТЕМ</text>
+        <g class="f" style="--d:.2" id="vmBox">
+          <rect class="vm" x="24" y="44" width="92" height="46" rx="10" fill="rgba(45,212,240,.14)" stroke="rgba(45,212,240,.42)"/><text x="70" y="72" fill="#fff" font-size="11.5" text-anchor="middle">сайт</text>
+          <rect class="vm" x="124" y="44" width="92" height="46" rx="10" fill="rgba(169,112,255,.16)" stroke="rgba(169,112,255,.45)"/><text x="170" y="72" fill="#fff" font-size="11.5" text-anchor="middle">база</text>
+          <rect class="vm" x="224" y="44" width="92" height="46" rx="10" fill="rgba(61,220,151,.14)" stroke="rgba(61,220,151,.42)"/><text x="270" y="72" fill="#fff" font-size="11.5" text-anchor="middle">тесты</text>
+          <rect class="vm" x="324" y="44" width="92" height="46" rx="10" fill="rgba(255,194,71,.14)" stroke="rgba(255,194,71,.42)"/><text x="370" y="72" fill="#fff" font-size="11.5" text-anchor="middle">почта</text>
+        </g>
+        <g class="f" style="--d:.5">
+          <text x="24" y="124" fill="#a6b4cf" font-size="12">Загрузка сервера</text>
+          <rect x="24" y="136" width="392" height="30" rx="9" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.12)"/>
+          <rect x="24" y="136" width="392" height="30" rx="9" fill="rgba(61,220,151,.4)" class="fill" style="--d:.7"/>
+          <text x="220" y="188" fill="#9ff2cd" font-size="13" text-anchor="middle" class="m">~70–80% · железо работает</text>
+        </g>
+        <g class="f" style="--d:.9">
+          <text x="24" y="196" fill="#a8ecf9" font-size="12" font-weight="700">Попробуй сам 👇 нажми кнопку под схемой — появятся новые ВМ</text>
+          <text x="24" y="214" fill="#8b98b3" font-size="11">второй ряд — это новые системы на том же самом железе</text>
+          <text x="416" y="214" fill="#a8ecf9" font-size="12" text-anchor="end" class="m" id="vmCnt">ВМ: 4</text>
+          <rect x="24" y="226" width="392" height="40" rx="10" fill="rgba(45,212,240,.05)" stroke="rgba(45,212,240,.22)" stroke-dasharray="5 5"/>
+          <text x="220" y="251" fill="#4f5c74" font-size="11" text-anchor="middle">сюда добавятся новые ВМ</text>
+        </g>
+      </svg>
+      <div style="margin-top:10px"><button class="plus" id="vmAdd">+ создать ВМ</button></div>
+    </div>
+  </div>
+  <div class="note g" data-a style="--i:3">Плюс изоляция: сломалась одна система — остальные работают. И снимки состояния: сломал → откатился за секунду.</div>
+</section>
+
+<!-- 3. ЧТО ЭТО -->
+<section class="slide" data-toc="Что это: отель">
+  <p class="kick g" data-a style="--i:0">Определение через аналогию</p>
+  <h2 data-a style="--i:1">Компьютер — это <span class="acc3">отель</span>, гипервизор — <span class="acc3">администратор</span></h2>
+  <div class="row wl">
+    <div data-a="s" style="--i:2">
+      <svg class="dg" viewBox="0 0 470 400" role="img" aria-label="Отель: номера, администратор, здание">
+        <g class="f" style="--d:.1">
+          <rect x="24" y="18" width="422" height="204" rx="18" fill="rgba(255,255,255,.045)" stroke="rgba(255,255,255,.16)"/>
+          <text x="235" y="44" fill="#fff" font-size="13.5" font-weight="800" text-anchor="middle">ЗДАНИЕ = КОМПЬЮТЕР</text>
+        </g>
+        <g class="pop" style="--d:.3">
+          <rect x="44" y="60" width="180" height="66" rx="12" fill="rgba(45,212,240,.14)" stroke="rgba(45,212,240,.42)"/>
+          <text x="134" y="86" fill="#fff" font-size="13" text-anchor="middle">🚪 Номер 101</text>
+          <text x="134" y="106" fill="#9fdcef" font-size="10.5" text-anchor="middle">Windows и её программы</text>
+        </g>
+        <g class="pop" style="--d:.45">
+          <rect x="246" y="60" width="180" height="66" rx="12" fill="rgba(169,112,255,.16)" stroke="rgba(169,112,255,.45)"/>
+          <text x="336" y="86" fill="#fff" font-size="13" text-anchor="middle">🚪 Номер 102</text>
+          <text x="336" y="106" fill="#cbb0f2" font-size="10.5" text-anchor="middle">Linux и свои задачи</text>
+        </g>
+        <g class="pop" style="--d:.6">
+          <rect x="44" y="140" width="180" height="66" rx="12" fill="rgba(61,220,151,.14)" stroke="rgba(61,220,151,.42)"/>
+          <text x="134" y="166" fill="#fff" font-size="13" text-anchor="middle">🚪 Номер 103</text>
+          <text x="134" y="186" fill="#9fe6c6" font-size="10.5" text-anchor="middle">тестовая система</text>
+        </g>
+        <g class="pop" style="--d:.75">
+          <rect x="246" y="140" width="180" height="66" rx="12" fill="rgba(255,255,255,.045)" stroke="rgba(255,255,255,.14)" stroke-dasharray="5 5"/>
+          <text x="336" y="170" fill="#7f8ca6" font-size="12" text-anchor="middle">свободен</text>
+          <text x="336" y="188" fill="#7f8ca6" font-size="11" text-anchor="middle">→ сдадим новому гостю</text>
+        </g>
+        <g class="f" style="--d:.95">
+          <rect x="24" y="240" width="422" height="70" rx="14" fill="rgba(255,194,71,.13)" stroke="rgba(255,194,71,.45)"/>
+          <rect x="24" y="240" width="422" height="70" rx="14" fill="none" stroke="rgba(255,194,71,.5)" stroke-width="3" class="gl"/>
+          <text x="235" y="268" fill="#fff" font-size="15" font-weight="800" text-anchor="middle">🛎️ АДМИНИСТРАТОР = ГИПЕРВИЗОР</text>
+          <text x="235" y="290" fill="#f2d69b" font-size="11.5" text-anchor="middle">расселяет, выдаёт ключи, всё видит</text>
+        </g>
+        <g class="f" style="--d:1.15">
+          <rect x="24" y="326" width="422" height="52" rx="12" fill="rgba(255,107,129,.13)" stroke="rgba(255,255,255,.16)"/>
+          <text x="235" y="357" fill="#fff" font-size="13" text-anchor="middle">🧱 Фундамент = процессор, память, диск</text>
+        </g>
+        <path d="M134 226 L134 240" stroke="rgba(255,194,71,.55)" stroke-width="2.5" class="dr pl" style="--d:1.25" stroke-dasharray="5 4" fill="none"/>
+        <path d="M336 226 L336 240" stroke="rgba(255,194,71,.55)" stroke-width="2.5" class="dr pl" style="--d:1.35" stroke-dasharray="5 4" fill="none"/>
+        <circle cx="134" cy="232" r="4" fill="#ffc247" class="bl" style="--d:1.4"/>
+        <circle cx="336" cy="232" r="4" fill="#ffc247" class="bl" style="--d:1.5"/>
+      </svg>
+    </div>
+    <div>
+      <p class="big" data-a style="--i:3">Каждый номер — это <b class="w">виртуальная машина (ВМ)</b>: свой «компьютер в файле» со своей системой. Соседей не видно и не слышно.</p>
+      <ul class="pts" data-a style="--i:4;margin-top:12px">
+        <li>Одна система <b>думает, что владеет</b> всем компьютером.</li>
+        <li>Администратор <b>делит</b> процессор, память и диск между номерами.</li>
+        <li>Он же <b>видит всё</b>, что происходит внутри.</li>
+      </ul>
+      <div class="note v" data-a style="--i:5;margin-top:12px">VirtualBox — это и есть такой администратор, только поставленный как обычная программа. Дальше увидим разницу.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. ДВА ВИДА -->
+<section class="slide" data-toc="Два вида">
+  <p class="kick" data-a style="--i:0">Два вида</p>
+  <h2 data-a style="--i:1">Гипервизор <span class="acc">на железе</span> или <span class="acc2">внутри системы</span></h2>
+  <div class="row two">
+    <div data-a="l" style="--i:2">
+      <svg class="dg" viewBox="0 0 420 300" role="img" aria-label="Тип 1: гипервизор на железе">
+        <text x="210" y="26" fill="#9ff2cd" font-size="13.5" font-weight="800" text-anchor="middle">ТИП 1 · СЕРВЕРЫ И ОБЛАКА</text>
+        <g class="f" style="--d:.2">
+          <rect x="20" y="44" width="120" height="48" rx="10" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.16)"/><text x="80" y="73" fill="#fff" font-size="12" text-anchor="middle">ВМ</text>
+          <rect x="150" y="44" width="120" height="48" rx="10" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.16)"/><text x="210" y="73" fill="#fff" font-size="12" text-anchor="middle">ВМ</text>
+          <rect x="280" y="44" width="120" height="48" rx="10" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.16)"/><text x="340" y="73" fill="#fff" font-size="12" text-anchor="middle">ВМ</text>
+        </g>
+        <g class="f" style="--d:.4">
+          <rect x="20" y="106" width="380" height="64" rx="12" fill="rgba(61,220,151,.18)" stroke="rgba(61,220,151,.5)"/>
+          <rect x="20" y="106" width="380" height="64" rx="12" fill="none" stroke="rgba(61,220,151,.55)" stroke-width="3" class="gl"/>
+          <text x="210" y="134" fill="#fff" font-size="15" font-weight="800" text-anchor="middle">ГИПЕРВИЗОР</text>
+          <text x="210" y="155" fill="#a9e8cd" font-size="10.5" text-anchor="middle" class="m">ESXi · KVM · Hyper-V · Xen</text>
+        </g>
+        <g class="f" style="--d:.6">
+          <rect x="20" y="184" width="380" height="46" rx="11" fill="rgba(255,107,129,.13)" stroke="rgba(255,255,255,.16)"/>
+          <text x="210" y="212" fill="#fff" font-size="13" text-anchor="middle">Железо</text>
+        </g>
+        <text x="210" y="258" fill="#95a2bb" font-size="12" text-anchor="middle">Ничего лишнего между железом и ВМ —</text>
+        <text x="210" y="276" fill="#95a2bb" font-size="12" text-anchor="middle">быстро и надёжно 🏢</text>
+      </svg>
+    </div>
+    <div data-a="r" style="--i:2">
+      <svg class="dg" viewBox="0 0 420 300" role="img" aria-label="Тип 2: гипервизор внутри системы">
+        <text x="210" y="26" fill="#cbb0f2" font-size="13.5" font-weight="800" text-anchor="middle">ТИП 2 · НАШ НОУТБУК</text>
+        <g class="f" style="--d:.2">
+          <rect x="20" y="44" width="182" height="48" rx="10" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.16)"/><text x="111" y="73" fill="#fff" font-size="12" text-anchor="middle">ВМ (гость)</text>
+          <rect x="218" y="44" width="182" height="48" rx="10" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.16)"/><text x="309" y="73" fill="#fff" font-size="12" text-anchor="middle">ВМ (гость)</text>
+        </g>
+        <g class="f" style="--d:.4">
+          <rect x="20" y="106" width="380" height="52" rx="12" fill="rgba(169,112,255,.2)" stroke="rgba(169,112,255,.5)"/>
+          <text x="210" y="128" fill="#fff" font-size="14" font-weight="800" text-anchor="middle">ГИПЕРВИЗОР</text>
+          <text x="210" y="147" fill="#cbb0f2" font-size="10.5" text-anchor="middle" class="m">VirtualBox · VMware · Parallels</text>
+        </g>
+        <g class="f" style="--d:.55">
+          <rect x="20" y="172" width="380" height="46" rx="11" fill="rgba(45,212,240,.12)" stroke="rgba(255,255,255,.16)"/>
+          <text x="210" y="200" fill="#fff" font-size="13" text-anchor="middle">Твоя Windows / macOS</text>
+        </g>
+        <g class="f" style="--d:.7">
+          <rect x="20" y="232" width="380" height="38" rx="10" fill="rgba(255,107,129,.13)" stroke="rgba(255,255,255,.16)"/>
+          <text x="210" y="256" fill="#fff" font-size="12.5" text-anchor="middle">Железо</text>
+        </g>
+        <text x="210" y="290" fill="#95a2bb" font-size="12" text-anchor="middle">Это программа внутри системы 💻 — так делаем мы</text>
+      </svg>
+    </div>
+  </div>
+  <div class="note" data-a style="--i:3">Запомнить просто: <b>тип 1</b> — гипервизор вместо системы (серверы), <b>тип 2</b> — гипервизор как программа (VirtualBox). Спроси группу: кто ставил VirtualBox? Это он и есть.</div>
+</section>
+
+<!-- 5. КАК РАБОТАЕТ -->
+<section class="slide" data-toc="Как работает">
+  <p class="kick" data-a style="--i:0">Как это работает</p>
+  <h2 data-a style="--i:1">Гипервизор — это <span class="acc">диспетчер</span></h2>
+  <div data-a="s" style="--i:2">
+    <svg class="dg" viewBox="0 0 900 320" role="img" aria-label="Диспетчер распределяет ресурсы">
+      <defs>
+        <marker id="d1" markerWidth="9" markerHeight="9" refX="6.5" refY="3.2" orient="auto"><path d="M0 0 L8 3.2 L0 6.4 z" fill="#2dd4f0"/></marker>
+        <marker id="d2" markerWidth="9" markerHeight="9" refX="6.5" refY="3.2" orient="auto"><path d="M0 0 L8 3.2 L0 6.4 z" fill="#a970ff"/></marker>
+        <linearGradient id="dl1" x1="0" x2="1"><stop offset="0" stop-color="#2dd4f0"/><stop offset="1" stop-color="#3ddc97"/></linearGradient>
+      </defs>
+      <g class="f" style="--d:.1">
+        <rect x="22" y="22" width="210" height="58" rx="12" fill="rgba(45,212,240,.13)" stroke="rgba(45,212,240,.42)"/>
+        <text x="127" y="46" fill="#fff" font-size="13.5" font-weight="700" text-anchor="middle">ВМ 1 · Windows</text>
+        <text x="127" y="65" fill="#9fdcef" font-size="10.5" text-anchor="middle">«дай процессор и память»</text>
+        <rect x="22" y="96" width="210" height="58" rx="12" fill="rgba(169,112,255,.16)" stroke="rgba(169,112,255,.45)"/>
+        <text x="127" y="120" fill="#fff" font-size="13.5" font-weight="700" text-anchor="middle">ВМ 2 · Linux</text>
+        <text x="127" y="139" fill="#cbb0f2" font-size="10.5" text-anchor="middle">«и мне тоже»</text>
+        <rect x="22" y="170" width="210" height="58" rx="12" fill="rgba(61,220,151,.14)" stroke="rgba(61,220,151,.42)"/>
+        <text x="127" y="194" fill="#fff" font-size="13.5" font-weight="700" text-anchor="middle">ВМ 3 · тесты</text>
+        <text x="127" y="213" fill="#9fe6c6" font-size="10.5" text-anchor="middle">«мне чуть-чуть»</text>
+      </g>
+      <g class="f" style="--d:.35">
+        <rect x="326" y="22" width="230" height="206" rx="18" fill="rgba(255,194,71,.11)" stroke="rgba(255,194,71,.45)" stroke-width="1.5"/>
+        <rect x="326" y="22" width="230" height="206" rx="18" fill="none" stroke="rgba(255,194,71,.5)" stroke-width="3" class="gl"/>
+        <text x="441" y="56" fill="#fff" font-size="17" font-weight="800" text-anchor="middle">ГИПЕРВИЗОР</text>
+        <text x="441" y="78" fill="#f2d69b" font-size="11.5" text-anchor="middle">очередь · расписание · контроль</text>
+        <rect x="350" y="94" width="182" height="32" rx="9" fill="rgba(255,255,255,.07)"/><text x="441" y="115" fill="#dbe6f7" font-size="11.5" text-anchor="middle">кому процессор сейчас</text>
+        <rect x="350" y="132" width="182" height="32" rx="9" fill="rgba(255,255,255,.07)"/><text x="441" y="153" fill="#dbe6f7" font-size="11.5" text-anchor="middle">кому сколько памяти</text>
+        <rect x="350" y="170" width="182" height="32" rx="9" fill="rgba(255,255,255,.07)"/><text x="441" y="191" fill="#dbe6f7" font-size="11.5" text-anchor="middle">кому диск и сеть</text>
+      </g>
+      <g class="f" style="--d:.6">
+        <rect x="650" y="22" width="228" height="58" rx="12" fill="rgba(255,107,129,.13)" stroke="rgba(255,255,255,.18)"/>
+        <text x="764" y="46" fill="#fff" font-size="13.5" font-weight="700" text-anchor="middle">⚙️ Процессор</text>
+        <rect x="668" y="56" width="192" height="12" rx="6" fill="rgba(255,255,255,.07)"/>
+        <rect x="668" y="56" width="192" height="12" rx="6" fill="rgba(45,212,240,.55)" class="fill" style="--d:.9"/>
+        <rect x="650" y="96" width="228" height="58" rx="12" fill="rgba(255,107,129,.13)" stroke="rgba(255,255,255,.18)"/>
+        <text x="764" y="120" fill="#fff" font-size="13.5" font-weight="700" text-anchor="middle">🧠 Память</text>
+        <rect x="668" y="130" width="192" height="12" rx="6" fill="rgba(255,255,255,.07)"/>
+        <rect x="668" y="130" width="192" height="12" rx="6" fill="rgba(169,112,255,.55)" class="fill" style="--d:1.1"/>
+        <rect x="650" y="170" width="228" height="58" rx="12" fill="rgba(255,107,129,.13)" stroke="rgba(255,255,255,.18)"/>
+        <text x="764" y="194" fill="#fff" font-size="13.5" font-weight="700" text-anchor="middle">💾 Диск и сеть</text>
+        <rect x="668" y="204" width="192" height="12" rx="6" fill="rgba(255,255,255,.07)"/>
+        <rect x="668" y="204" width="192" height="12" rx="6" fill="rgba(61,220,151,.55)" class="fill" style="--d:1.3"/>
+      </g>
+      <path d="M238 51 L320 56" stroke="url(#dl1)" stroke-width="2.5" fill="none" class="dr pl" style="--d:.75" stroke-dasharray="8 6" marker-end="url(#d1)"/>
+      <path d="M238 125 L320 125" stroke="url(#dl1)" stroke-width="2.5" fill="none" class="dr pl" style="--d:.85" stroke-dasharray="8 6" marker-end="url(#d1)"/>
+      <path d="M238 199 L320 194" stroke="url(#dl1)" stroke-width="2.5" fill="none" class="dr pl" style="--d:.95" stroke-dasharray="8 6" marker-end="url(#d1)"/>
+      <path d="M562 51 L644 51" stroke="#a970ff" stroke-width="2.5" fill="none" class="dr pl" style="--d:1.05" stroke-dasharray="8 6" marker-end="url(#d2)"/>
+      <path d="M562 125 L644 125" stroke="#a970ff" stroke-width="2.5" fill="none" class="dr pl" style="--d:1.15" stroke-dasharray="8 6" marker-end="url(#d2)"/>
+      <path d="M562 199 L644 199" stroke="#a970ff" stroke-width="2.5" fill="none" class="dr pl" style="--d:1.25" stroke-dasharray="8 6" marker-end="url(#d2)"/>
+      <g class="f" style="--d:1.4">
+        <rect x="22" y="248" width="856" height="52" rx="12" fill="rgba(45,212,240,.07)" stroke="rgba(45,212,240,.28)" stroke-dasharray="5 5"/>
+        <text x="450" y="270" fill="#a8ecf9" font-size="12.5" font-weight="700" text-anchor="middle">ВМ просит «настоящее» железо, а получает виртуальный кусок — и не замечает подмены</text>
+        <text x="450" y="289" fill="#8b98b3" font-size="11.5" text-anchor="middle">в процессоре для этого есть специальный режим (Intel VT-x / AMD-V), где главный — гипервизор</text>
+      </g>
+    </svg>
+  </div>
+  <div class="row two">
+    <div class="note" data-a style="--i:3">Каждой ВМ гипервизор выдаёт свою «карту» памяти, поэтому залезть в чужую память <b>изнутри</b> нельзя.</div>
+    <div class="note r" data-a style="--i:4">А вот <b>со стороны железа</b> — можно. Именно этим пользуются читеры, о них дальше.</div>
+  </div>
+</section>
+
+<!-- 6. ГДЕ ПРИМЕНЯЮТ -->
+<section class="slide" data-toc="Где применяют">
+  <p class="kick g" data-a style="--i:0">Где применяется</p>
+  <h2 data-a style="--i:1">Гипервизоры <span class="acc3">вокруг нас</span></h2>
+  <div class="cards c3" data-a style="--i:2">
+    <div class="card g" style="--i:0"><span class="ic">☁️</span><h3>Облака и сайты</h3><p>Почти любой сайт работает на ВМ в дата-центре.</p></div>
+    <div class="card g" style="--i:1"><span class="ic">🎮</span><h3>Игровые серверы</h3><p>Мультиплеер и облачный гейминг — тоже ВМ.</p></div>
+    <div class="card g" style="--i:2"><span class="ic">🏦</span><h3>Банки и магазины</h3><p>Платежи и базы разделены, чтобы сбой не остановил всё.</p></div>
+    <div class="card v" style="--i:3"><span class="ic">🦠</span><h3>Проверка вирусов</h3><p>Файл запускают в одноразовой ВМ и смотрят, что он сделает.</p></div>
+    <div class="card v" style="--i:4"><span class="ic">🧑‍💻</span><h3>Учёба и разработка</h3><p>Linux внутри Windows: сломал — удалил, ничего не страшно.</p></div>
+    <div class="card v" style="--i:5"><span class="ic">📦</span><h3>Docker у тебя на ПК</h3><p>Docker Desktop и WSL2 работают через гипервизор. Ты уже им пользуешься.</p></div>
+    <div class="card" style="--i:6"><span class="ic">🛡️</span><h3>Защита Windows</h3><p>Windows прячет своё ядро внутри Hyper-V от вирусов.</p></div>
+    <div class="card" style="--i:7"><span class="ic">🚗</span><h3>Автомобили</h3><p>Один чип крутит приборку и ассистентов через гипервизор.</p></div>
+    <div class="card" style="--i:8"><span class="ic">🖥️</span><h3>Офисы</h3><p>Сотни рабочих столов на одном сервере.</p></div>
+  </div>
+  <div class="note g" data-a style="--i:3">Названия, которые полезно назвать: <b>VirtualBox</b> и <b>VMware</b> (для ноутбука), <b>Hyper-V</b> (внутри Windows), <b>KVM</b> и <b>ESXi</b> (серверы).</div>
+</section>
+
+<!-- 7. ЧИТЫ 1 -->
+<section class="slide" data-toc="Обратная сторона: спрятаться">
+  <p class="kick r" data-a style="--i:0">Обратная сторона · способ 1</p>
+  <h2 data-a style="--i:1">Спрятать чит <span class="acc2">под системой</span></h2>
+  <div class="row two">
+    <div data-a="l" style="--i:2">
+      <svg class="dg" viewBox="0 0 470 360" role="img" aria-label="Читерский гипервизор под системой">
+        <text x="235" y="24" fill="#ffc7cf" font-size="12.5" font-weight="800" text-anchor="middle">ЧТО ВИДИТ АНТИЧИТ И ЧТО ЕСТЬ НА САМОМ ДЕЛЕ</text>
+        <g class="f" style="--d:.15">
+          <rect x="30" y="40" width="410" height="56" rx="12" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.18)"/>
+          <text x="235" y="63" fill="#fff" font-size="13.5" font-weight="700" text-anchor="middle">🎮 Игра + античит</text>
+          <text x="235" y="83" fill="#8b98b3" font-size="11" text-anchor="middle">проверяет программы и память… видит только то, что ему показали</text>
+        </g>
+        <g class="f" style="--d:.45">
+          <rect x="30" y="112" width="410" height="54" rx="12" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.18)"/>
+          <text x="235" y="135" fill="#fff" font-size="13.5" font-weight="700" text-anchor="middle">🪟 Windows</text>
+          <text x="235" y="154" fill="#8b98b3" font-size="11" text-anchor="middle">теперь она гость, а не хозяйка</text>
+        </g>
+        <g class="pop" style="--d:.85">
+          <rect x="30" y="182" width="410" height="72" rx="14" fill="rgba(255,107,129,.16)" stroke="rgba(255,107,129,.55)" stroke-width="1.5"/>
+          <rect x="30" y="182" width="410" height="72" rx="14" fill="none" stroke="rgba(255,107,129,.6)" stroke-width="3" class="gl"/>
+          <text x="235" y="211" fill="#fff" font-size="14.5" font-weight="800" text-anchor="middle">👻 ЧИТЕРСКИЙ ГИПЕРВИЗОР</text>
+          <text x="235" y="233" fill="#ffc7cf" font-size="11.5" text-anchor="middle">подсовывает игре изменённые данные</text>
+        </g>
+        <g class="f" style="--d:1.15">
+          <rect x="30" y="270" width="410" height="44" rx="12" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.16)"/>
+          <text x="235" y="297" fill="#dbe6f7" font-size="12.5" text-anchor="middle">Железо</text>
+        </g>
+        <path d="M235 178 L235 170" stroke="rgba(255,107,129,.6)" stroke-width="2.5" class="dr pl" style="--d:1.25" stroke-dasharray="6 5" fill="none"/>
+        <text x="235" y="340" fill="#95a2bb" font-size="11.5" text-anchor="middle">эксперимент 2006 года — «Blue Pill»: система не может доказать, что она не внутри ВМ</text>
+      </svg>
+    </div>
+    <div>
+      <p class="big" data-a style="--i:3">Читер запускает <b class="w">свой гипервизор</b>, а Windows поднимает внутри него. Теперь чит ниже и игры, и античита.</p>
+      <ul class="pts r" data-a style="--i:4;margin-top:12px">
+        <li>Античиту <b>показывают чистую картинку</b>.</li>
+        <li>В Windows <b>нет ни файла, ни процесса</b> чита.</li>
+        <li>Минус: игра тормозит, и это заметно.</li>
+      </ul>
+      <div class="note r" data-a style="--i:5;margin-top:12px">Главная мысль: <b>того, кто стоит ниже системы, система не видит</b>. Поэтому место под системой стараются занять защитники первыми.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 8. ЧИТЫ 2 DMA -->
+<section class="slide" data-toc="Обратная сторона: DMA">
+  <p class="kick r" data-a style="--i:0">Обратная сторона · способ 2, сейчас самый популярный</p>
+  <h2 data-a style="--i:1">Читать память игры <span class="acc2">с другого компьютера</span></h2>
+  <p data-a style="--i:2">Устройству разрешено читать память напрямую, без процессора — так работают сетевые карты и SSD. Этим пользуются: в ПК ставят маленькую плату, которая вычитывает память игры и передаёт её на второй компьютер.</p>
+  <div data-a="s" style="--i:3">
+    <svg class="dg" viewBox="0 0 900 300" role="img" aria-label="Схема DMA-чита">
+      <defs>
+        <marker id="m1" markerWidth="9" markerHeight="9" refX="6.5" refY="3.2" orient="auto"><path d="M0 0 L8 3.2 L0 6.4 z" fill="#a970ff"/></marker>
+        <linearGradient id="ln3" x1="0" x2="1"><stop offset="0" stop-color="#ff6b81"/><stop offset="1" stop-color="#a970ff"/></linearGradient>
+      </defs>
+      <g class="f" style="--d:.1">
+        <rect x="20" y="18" width="330" height="264" rx="18" fill="rgba(45,212,240,.06)" stroke="rgba(45,212,240,.3)"/>
+        <text x="185" y="44" fill="#a8ecf9" font-size="13.5" font-weight="800" text-anchor="middle">🖥️ ИГРОВОЙ ПК</text>
+        <rect x="42" y="58" width="286" height="44" rx="10" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.16)"/>
+        <text x="185" y="85" fill="#fff" font-size="13" text-anchor="middle">🎮 Игра + античит</text>
+        <rect x="42" y="112" width="286" height="52" rx="10" fill="rgba(169,112,255,.18)" stroke="rgba(169,112,255,.5)"/>
+        <text x="185" y="134" fill="#fff" font-size="13" font-weight="800" text-anchor="middle">🧠 ПАМЯТЬ</text>
+        <text x="185" y="152" fill="#cbb0f2" font-size="10.5" text-anchor="middle">где враги, их здоровье, координаты</text>
+        <rect x="42" y="174" width="286" height="56" rx="10" fill="rgba(255,107,129,.16)" stroke="rgba(255,107,129,.5)" stroke-width="1.5"/>
+        <rect x="42" y="174" width="286" height="56" rx="10" fill="none" stroke="rgba(255,107,129,.6)" stroke-width="3" class="gl"/>
+        <text x="185" y="197" fill="#fff" font-size="13" font-weight="800" text-anchor="middle">🔌 ПЛАТА (FPGA) в разъёме M.2</text>
+        <text x="185" y="216" fill="#ffc7cf" font-size="10.5" text-anchor="middle">притворяется Wi-Fi-картой</text>
+        <text x="185" y="256" fill="#8b98b3" font-size="11" text-anchor="middle">в системе нет ни одной строчки</text>
+        <text x="185" y="272" fill="#8b98b3" font-size="11" text-anchor="middle">читерского кода</text>
+      </g>
+      <g class="f" style="--d:.5">
+        <rect x="550" y="18" width="330" height="264" rx="18" fill="rgba(169,112,255,.07)" stroke="rgba(169,112,255,.3)"/>
+        <text x="715" y="44" fill="#cbb0f2" font-size="13.5" font-weight="800" text-anchor="middle">💻 ВТОРОЙ КОМПЬЮТЕР</text>
+        <rect x="572" y="58" width="286" height="44" rx="10" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.16)"/>
+        <text x="715" y="85" fill="#fff" font-size="13" text-anchor="middle">получает копию памяти</text>
+        <rect x="572" y="112" width="286" height="52" rx="10" fill="rgba(45,212,240,.13)" stroke="rgba(45,212,240,.45)"/>
+        <text x="715" y="134" fill="#fff" font-size="13" font-weight="800" text-anchor="middle">📐 считает, где враги</text>
+        <text x="715" y="152" fill="#9fdcef" font-size="10.5" text-anchor="middle">вся читерская программа живёт тут</text>
+        <rect x="572" y="174" width="286" height="56" rx="10" fill="rgba(61,220,151,.15)" stroke="rgba(61,220,151,.45)"/>
+        <text x="715" y="197" fill="#fff" font-size="13" font-weight="800" text-anchor="middle">🖼️ рисует на втором мониторе</text>
+        <text x="715" y="216" fill="#9fe6c6" font-size="10.5" text-anchor="middle">подсветка врагов сквозь стены</text>
+        <text x="715" y="256" fill="#8b98b3" font-size="11" text-anchor="middle">античита здесь нет вообще —</text>
+        <text x="715" y="272" fill="#8b98b3" font-size="11" text-anchor="middle">проверять нечего</text>
+      </g>
+      <g class="f" style="--d:.9">
+        <path d="M334 202 C440 202, 440 80, 546 80" stroke="url(#ln3)" stroke-width="3" fill="none" class="dr pl" style="--d:1" stroke-dasharray="9 6" marker-end="url(#m1)"/>
+        <text x="440" y="152" fill="#ffc7cf" font-size="11.5" text-anchor="middle" class="m">кабель USB</text>
+        <circle r="4.5" fill="#ff6b81"><animateMotion dur="2.4s" repeatCount="indefinite" path="M334 202 C440 202, 440 80, 546 80" begin="1.1s"/></circle>
+        <circle r="4.5" fill="#a970ff"><animateMotion dur="2.4s" repeatCount="indefinite" path="M334 202 C440 202, 440 80, 546 80" begin="1.9s"/></circle>
+        <circle r="3.5" fill="#ffc247"><animateMotion dur="2.4s" repeatCount="indefinite" path="M334 202 C440 202, 440 80, 546 80" begin="2.7s"/></circle>
+      </g>
+    </svg>
+  </div>
+  <div class="row two">
+    <div class="note r" data-a style="--i:4"><b>Почему ловят плохо:</b> античит ищет программы и следы в памяти, а их нет. Ловят по железу (странные платы, защита IOMMU) и по статистике попаданий на сервере.</div>
+    <div class="note g" data-a style="--i:5"><b>Важно:</b> это нарушение правил игр — бан аккаунта и железа. Рассказываю, чтобы было понятно, почему античиты стали такими строгими.</div>
+  </div>
+</section>
+
+<!-- 9. ЗАЩИТА -->
+<section class="slide" data-toc="Как защищаются">
+  <p class="kick g" data-a style="--i:0">Защита</p>
+  <h2 data-a style="--i:1">Ответ: <span class="acc3">занять место под системой</span> первым</h2>
+  <div class="row wr">
+    <div data-a="l" style="--i:2">
+      <svg class="dg" viewBox="0 0 430 330" role="img" aria-label="Уровни защиты">
+        <g class="pop" style="--d:.15">
+          <rect x="40" y="16" width="350" height="56" rx="12" fill="rgba(61,220,151,.13)" stroke="rgba(61,220,151,.42)"/>
+          <text x="215" y="40" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">🔐 1. Secure Boot + TPM</text>
+          <text x="215" y="59" fill="#9fe6c6" font-size="10.5" text-anchor="middle">загружается только проверенный код</text>
+          <circle cx="366" cy="44" r="9" fill="rgba(61,220,151,.25)" stroke="rgba(61,220,151,.7)"/><text x="366" y="49" fill="#9ff2cd" font-size="12" text-anchor="middle">✓</text>
+        </g>
+        <g class="pop" style="--d:.45">
+          <rect x="62" y="84" width="306" height="56" rx="12" fill="rgba(61,220,151,.13)" stroke="rgba(61,220,151,.42)"/>
+          <text x="215" y="108" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">🛡️ 2. Защита ядра (HVCI)</text>
+          <text x="215" y="127" fill="#9fe6c6" font-size="10.5" text-anchor="middle">ядро Windows внутри Hyper-V</text>
+          <circle cx="344" cy="112" r="9" fill="rgba(61,220,151,.25)" stroke="rgba(61,220,151,.7)"/><text x="344" y="117" fill="#9ff2cd" font-size="12" text-anchor="middle">✓</text>
+        </g>
+        <g class="pop" style="--d:.75">
+          <rect x="84" y="152" width="262" height="56" rx="12" fill="rgba(61,220,151,.13)" stroke="rgba(61,220,151,.42)"/>
+          <text x="215" y="176" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">🚧 3. IOMMU</text>
+          <text x="215" y="195" fill="#9fe6c6" font-size="10.5" text-anchor="middle">устройствам закрыт доступ к чужой памяти</text>
+          <circle cx="322" cy="180" r="9" fill="rgba(61,220,151,.25)" stroke="rgba(61,220,151,.7)"/><text x="322" y="185" fill="#9ff2cd" font-size="12" text-anchor="middle">✓</text>
+        </g>
+        <g class="pop" style="--d:1.05">
+          <rect x="106" y="220" width="218" height="56" rx="12" fill="rgba(61,220,151,.13)" stroke="rgba(61,220,151,.42)"/>
+          <text x="215" y="244" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">📊 4. Сервер игры</text>
+          <text x="215" y="263" fill="#9fe6c6" font-size="10.5" text-anchor="middle">анализ поведения игрока</text>
+          <circle cx="300" cy="248" r="9" fill="rgba(61,220,151,.25)" stroke="rgba(61,220,151,.7)"/><text x="300" y="253" fill="#9ff2cd" font-size="12" text-anchor="middle">✓</text>
+        </g>
+        <path d="M26 24 L26 284" stroke="rgba(61,220,151,.4)" stroke-width="2" class="dr" style="--d:1.2" fill="none"/>
+        <text x="215" y="306" fill="#95a2bb" font-size="11.5" text-anchor="middle">чем ниже уровень — тем сложнее его обмануть</text>
+      </svg>
+    </div>
+    <div>
+      <ul class="pts g" data-a style="--i:3">
+        <li><b>Secure Boot + TPM</b> — чужой гипервизор просто не запустится.</li>
+        <li><b>Защита ядра</b> — вирус не подменит драйвер системы.</li>
+        <li><b>IOMMU</b> — плата не сможет читать память игры.</li>
+        <li><b>Сервер игры</b> — ловит читера по нечеловеческой точности.</li>
+      </ul>
+      <div class="note g" data-a style="--i:4;margin-top:12px">Поэтому в <b>Valorant</b> нельзя играть без TPM и Secure Boot: это не придирка, а защита от читов, которые стартуют раньше системы.</div>
+      <div class="note v" data-a style="--i:5;margin-top:10px">Симметрия: читер и безопасник делают одно и то же — встают ниже системы и читают чужую память. Разница только в цели.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 10. ИТОГИ -->
+<section class="slide" data-toc="Итоги и вопросы">
+  <p class="kick v" data-a style="--i:0">Итоги</p>
+  <h2 data-a style="--i:1">Четыре вещи <span class="acc">на запоминание</span></h2>
+  <div class="cards c4" data-a style="--i:2">
+    <div class="card" style="--i:0"><span class="ic">🧩</span><h3>Что это</h3><p>Прослойка, которая делит один компьютер между изолированными системами. Пример — VirtualBox.</p></div>
+    <div class="card" style="--i:1"><span class="ic">🌍</span><h3>Где живёт</h3><p>Облака, сайты, игровые серверы, банки, проверка вирусов, Docker на твоём ПК.</p></div>
+    <div class="card v" style="--i:2"><span class="ic">👻</span><h3>Тёмная сторона</h3><p>Кто ниже системы — того не видно. Отсюда читы: свой гипервизор или плата, читающая память.</p></div>
+    <div class="card g" style="--i:3"><span class="ic">🛡️</span><h3>Защита</h3><p>Secure Boot, TPM, защита ядра и IOMMU: доверенный гипервизор занимает место первым.</p></div>
+  </div>
+  <div class="row two" style="align-items:start">
+    <div class="qa" data-a style="--i:3">
+      <div class="q"><b>Чем отличается от VirtualBox?</b><span>Ничем: VirtualBox и есть гипервизор, просто второго типа — программа внутри системы.</span></div>
+      <div class="q"><b>ВМ или контейнер (Docker)?</b><span>У ВМ своя система и своё ядро, у контейнера ядро общее. Контейнер легче, ВМ надёжнее изолирована.</span></div>
+      <div class="q"><b>DMA-чит невозможно поймать?</b><span>Нет: ловят по железу, защите IOMMU и поведению игрока на сервере.</span></div>
+    </div>
+    <div data-a="s" style="--i:4">
+      <svg class="dg" viewBox="0 0 460 210" role="img" aria-label="Итоговая схема">
+        <g class="f" style="--d:.1">
+          <rect x="24" y="20" width="412" height="46" rx="11" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.16)"/>
+          <text x="230" y="49" fill="#fff" font-size="13" text-anchor="middle">системы, которые думают, что владеют ПК</text>
+        </g>
+        <g class="pop" style="--d:.4">
+          <rect x="24" y="80" width="412" height="50" rx="12" fill="rgba(61,220,151,.16)" stroke="rgba(61,220,151,.5)"/>
+          <rect x="24" y="80" width="412" height="50" rx="12" fill="none" stroke="rgba(61,220,151,.55)" stroke-width="3" class="gl"/>
+          <text x="230" y="103" fill="#fff" font-size="14" font-weight="800" text-anchor="middle">ГИПЕРВИЗОР — «администратор отеля»</text>
+          <text x="230" y="121" fill="#a9e8cd" font-size="10.5" text-anchor="middle">экономит деньги компаниям · защищает системы · может и спрятать чит</text>
+        </g>
+        <g class="f" style="--d:.7">
+          <rect x="24" y="144" width="412" height="42" rx="11" fill="rgba(255,107,129,.13)" stroke="rgba(255,255,255,.16)"/>
+          <text x="230" y="170" fill="#fff" font-size="12.5" text-anchor="middle">железо: процессор · память · диск</text>
+        </g>
+        <circle cx="60" cy="105" r="4" fill="#3ddc97" class="bl" style="--d:.9"/>
+        <circle cx="400" cy="105" r="4" fill="#3ddc97" class="bl" style="--d:1.1"/>
+      </svg>
+      <h1 style="font-size:clamp(24px,3.4vw,42px);margin-top:12px">Спасибо! <span class="acc3">Вопросы?</span></h1>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<div id="bar"></div>
+<div id="toc"><h3>Оглавление <span style="font-size:.45em;color:var(--dim);font-family:ui-monospace,Menlo,monospace">· клик по пункту, Esc — закрыть</span></h3><ol id="tocList"></ol></div>
+<div id="nt"><div class="lb">ЧТО СКАЗАТЬ НА ЭТОМ СЛАЙДЕ</div><div class="tx" id="ntTx"></div></div>
+
+<div id="hud">
+  <div class="hint">← → или пробел · O — оглавление · F — полный экран · N — подсказки</div>
+  <div id="dots"></div>
+  <div class="nav">
+    <button class="bt" id="tnt" title="Подсказки докладчику (N)">Подсказки</button>
+    <button class="bt" id="tap" title="Автопрокрутка (P)">▶ Авто</button>
+    <button class="bt sq" id="pp" title="Назад">‹</button>
+    <button class="bt sq" id="nn" title="Вперёд">›</button>
+    <span id="cnt">01 / 10</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  const NOTES = {
+    1:"Начни так: «Тема — гипервизор. Если коротко: программа, которая делает из одного компьютера несколько. Пример, который многие видели — VirtualBox». Покажи на схеме, как один ПК превращается в три системы.",
+    2:"Объясни выгоду: без виртуализации сервер загружен на 10–15%, с ней — на 70–80%. Нажми кнопку «+ создать ВМ», покажи, что системы добавляются на том же железе.",
+    3:"Главная аналогия: здание — железо, администратор — гипервизор, номера — виртуальные машины. Скажи: «Администратор видит всё, что происходит в номерах».",
+    4:"Тип 1 — гипервизор вместо системы, для серверов. Тип 2 — программа внутри системы, это VirtualBox. Спроси группу, кто ставил VirtualBox.",
+    5:"Веди пальцем по схеме: системы просят ресурсы → гипервизор распределяет → отдаёт виртуальные куски железа. Ключевая фраза: «Система не замечает подмены».",
+    6:"Выбери 3–4 карточки, которые понятнее всего: облака, игровые серверы, банки, проверка вирусов, Docker. Названия: VirtualBox, Hyper-V, KVM.",
+    7:"Первый способ читерства: свой гипервизор под системой. Античиту показывают чистую картинку. Упомяни Blue Pill 2006 года и мысль «того, кто ниже системы, система не видит».",
+    8:"Самый важный слайд про читы. Расскажи по схеме: игровой ПК → плата в разъёме M.2 → кабель → второй компьютер → подсветка врагов. Обязательно добавь про бан и нарушение правил.",
+    9:"Защита: место под системой должен занять свой, проверенный гипервизор. Отсюда TPM, Secure Boot, защита ядра, IOMMU. Пример — Valorant.",
+    10:"Прочитай четыре пункта по одной фразе и предложи вопросы. Ответы на частые вопросы уже на слайде."
+  };
+
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const dots = document.getElementById('dots');
+  const cnt = document.getElementById('cnt');
+  const bar = document.getElementById('bar');
+  const toc = document.getElementById('toc');
+  const tocList = document.getElementById('tocList');
+  const nt = document.getElementById('nt');
+  const ntTx = document.getElementById('ntTx');
+  let cur = -1, tocOn = false, notesOn = false, autoOn = false, autoTimer = null;
+
+  slides.forEach((s,i)=>{
+    s.style.zIndex = i+1;
+    const d = document.createElement('i');
+    d.addEventListener('click',()=>go(i));
+    dots.appendChild(d);
+    const li = document.createElement('li');
+    li.innerHTML = '<b>'+String(i+1).padStart(2,'0')+'</b>'+(s.dataset.toc||('Слайд '+(i+1)));
+    li.addEventListener('click',()=>{ setToc(false); go(i); });
+    tocList.appendChild(li);
+  });
+  const dotEls = Array.from(dots.children);
+
+  function setToc(v){ tocOn = v; toc.classList.toggle('on', v); }
+  function setNotes(v){
+    notesOn = v; nt.classList.toggle('on', v);
+    document.getElementById('tnt').style.background = v ? 'rgba(45,212,240,.22)' : '';
+    if(v) ntTx.textContent = NOTES[cur+1] || '';
+  }
+  function setAuto(v){
+    autoOn = v;
+    document.getElementById('tap').textContent = v ? '❚❚ Авто' : '▶ Авто';
+    document.getElementById('tap').style.background = v ? 'rgba(45,212,240,.22)' : '';
+    if(autoTimer) clearInterval(autoTimer);
+    autoTimer = v ? setInterval(()=>{ cur === slides.length-1 ? go(0) : next(); }, 11000) : null;
+  }
+
+  function go(i){
+    if(i < 0 || i >= slides.length || i === cur) return;
+    slides.forEach((s,k)=>{ s.classList.toggle('on', k === i); s.classList.toggle('up', k < i); });
+    dotEls.forEach((d,k)=>d.classList.toggle('on', k === i));
+    cur = i;
+    cnt.textContent = String(i+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0');
+    bar.style.width = ((i+1)/slides.length*100)+'%';
+    if(notesOn) ntTx.textContent = NOTES[i+1] || '';
+    const h = '#'+(i+1);
+    if(location.hash !== h) history.replaceState(null, '', h);
+  }
+  function next(){ go(Math.min(cur+1, slides.length-1)); }
+  function prev(){ go(Math.max(cur-1, 0)); }
+
+  document.getElementById('nn').addEventListener('click', next);
+  document.getElementById('pp').addEventListener('click', prev);
+  document.getElementById('tnt').addEventListener('click', ()=>setNotes(!notesOn));
+  document.getElementById('tap').addEventListener('click', ()=>setAuto(!autoOn));
+
+  addEventListener('keydown', e=>{
+    if(e.key === 'Escape'){ if(tocOn) setToc(false); return; }
+    if(tocOn) return;
+    const k = e.key.toLowerCase();
+    if(k === 'arrowright' || k === 'pagedown' || k === ' '){ next(); e.preventDefault(); }
+    else if(k === 'arrowleft' || k === 'pageup'){ prev(); e.preventDefault(); }
+    else if(k === 'home'){ go(0); }
+    else if(k === 'end'){ go(slides.length-1); }
+    else if(k === 'f' || k === 'а'){
+      if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
+    }
+    else if(k === 'o' || k === 'щ'){ setToc(!tocOn); }
+    else if(k === 'n' || k === 'т'){ setNotes(!notesOn); }
+    else if(k === 'p' || k === 'з'){ setAuto(!autoOn); }
+  });
+
+  let acc = 0, last = 0;
+  addEventListener('wheel', e=>{
+    const now = Date.now();
+    if(now - last < 700) return;
+    acc += e.deltaY;
+    if(Math.abs(acc) > 45){ acc > 0 ? next() : prev(); acc = 0; last = now; }
+  }, {passive:true});
+
+  let tx = 0, ty = 0;
+  addEventListener('touchstart', e=>{ tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, {passive:true});
+  addEventListener('touchend', e=>{
+    const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+    if(Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) (dx < 0 ? next() : prev());
+  }, {passive:true});
+
+  /* ---- плавающие фигуры на фоне ---- */
+  const sh = document.getElementById('shapes');
+  const kinds = ['s1','s2','s3','s4'];
+  for(let i = 0; i < 16; i++){
+    const el = document.createElement('i');
+    el.className = kinds[i % kinds.length];
+    el.style.left = (Math.random()*98).toFixed(2)+'%';
+    el.style.animationDuration = (16 + Math.random()*20).toFixed(1)+'s';
+    el.style.animationDelay = (-Math.random()*30).toFixed(1)+'s';
+    sh.appendChild(el);
+  }
+
+  /* ---- интерактив: создать ВМ ---- */
+  const vmBox = document.getElementById('vmBox');
+  const vmCnt = document.getElementById('vmCnt');
+  const vmAdd = document.getElementById('vmAdd');
+  const palette = [
+    ['rgba(45,212,240,.14)','rgba(45,212,240,.42)'],
+    ['rgba(169,112,255,.16)','rgba(169,112,255,.45)'],
+    ['rgba(61,220,151,.14)','rgba(61,220,151,.42)'],
+    ['rgba(255,194,71,.14)','rgba(255,194,71,.42)'],
+    ['rgba(255,107,129,.14)','rgba(255,107,129,.42)'],
+    ['rgba(143,227,247,.14)','rgba(143,227,247,.42)']
+  ];
+  const names = ['сайт','база','тесты','почта','бот','wiki','proxy','lab','chat','mail','db2','api'];
+  let vms = vmBox.querySelectorAll('rect.vm').length;
+  function renderCount(){ vmCnt.textContent = 'ВМ: ' + vms; }
+  const MAXV = 12, SLOT = 49, BW = 46, BY = 226;
+  vmAdd.addEventListener('click', ()=>{
+    if(vms >= MAXV){ vmAdd.textContent = 'железо закончилось 😅'; return; }
+    const i = vms - 4;                     // порядковый номер во втором ряду
+    const x = 24 + i*SLOT;
+    const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r.setAttribute('class','vm');
+    r.setAttribute('x', String(x)); r.setAttribute('y', String(BY));
+    r.setAttribute('width', String(BW)); r.setAttribute('height','40'); r.setAttribute('rx','9');
+    const c = palette[vms % palette.length];
+    r.setAttribute('fill', c[0]); r.setAttribute('stroke', c[1]);
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('class','vm');
+    t.setAttribute('x', String(x + BW/2)); t.setAttribute('y', String(BY + 25));
+    t.setAttribute('fill','#fff'); t.setAttribute('font-size','11'); t.setAttribute('text-anchor','middle');
+    t.textContent = names[vms] || ('вм'+(vms+1));
+    vmBox.appendChild(r); vmBox.appendChild(t);
+    vms++; renderCount();
+    if(vms >= MAXV) vmAdd.textContent = 'железо закончилось 😅';
+  });
+  renderCount();
+
+  const h = parseInt((location.hash||'').replace('#',''), 10);
+  go(isNaN(h) ? 0 : Math.max(0, Math.min(slides.length-1, h-1)));
+})();
+</script>
+</body>
+</html>
